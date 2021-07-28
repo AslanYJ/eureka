@@ -468,7 +468,7 @@ public class DiscoveryClient implements EurekaClient {
         // 在服务注册之前会进行注册预处理，Eureka没有对此提供默认实现。构造函数的最后将初始化并启动发送心跳、缓存刷新和按需注册等定时任务。
         if (clientConfig.shouldRegisterWithEureka() && clientConfig.shouldEnforceRegistrationAtInit()) {
             try {
-                // 注册
+                // 注册,将本地的InstanceInfo发送到Eureka Server中
                 if (!register() ) {
                     throw new IllegalStateException("Registration error at startup. Invalid server response.");
                 }
@@ -479,6 +479,7 @@ public class DiscoveryClient implements EurekaClient {
         }
 
         // finally, init the schedule tasks (e.g. cluster resolvers, heartbeat, instanceInfo replicator, fetch
+        // 初始化定时任务，上面只是建立对应的线程池。。。
         initScheduledTasks();
 
         try {
@@ -1156,10 +1157,12 @@ public class DiscoveryClient implements EurekaClient {
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
             logger.debug("Got delta update with apps hashcode {}", delta.getAppsHashCode());
             String reconcileHashCode = "";
+            // 加锁。是因为处理更新的时候，需要O(n2)的时间复杂度。因此需要加锁一波
             if (fetchRegistryUpdateLock.tryLock()) {
                 try {
                     // 更新本地缓存
                     updateDelta(delta);
+                    // 计算更新后的applications的HashCode
                     reconcileHashCode = getReconcileHashCode(applications);
                 } finally {
                     fetchRegistryUpdateLock.unlock();
@@ -1168,6 +1171,7 @@ public class DiscoveryClient implements EurekaClient {
                 logger.warn("Cannot acquire update lock, aborting getAndUpdateDelta");
             }
             // There is a diff in number of instances for some reason
+            // 判断和Server的hashCode是否一致，不一致，则需要全量同步
             if (!reconcileHashCode.equals(delta.getAppsHashCode()) || clientConfig.shouldLogDeltaDiff()) {
                 reconcileAndLogDifference(delta, reconcileHashCode);  // this makes a remoteCall
             }
@@ -1263,6 +1267,7 @@ public class DiscoveryClient implements EurekaClient {
                 }
 
                 ++deltaCount;
+                // 现在操作
                 if (ActionType.ADDED.equals(instance.getActionType())) {
                     Application existingApp = applications.getRegisteredApplications(instance.getAppName());
                     if (existingApp == null) {
@@ -1270,6 +1275,7 @@ public class DiscoveryClient implements EurekaClient {
                     }
                     logger.debug("Added instance {} to the existing apps in region {}", instance.getId(), instanceRegion);
                     applications.getRegisteredApplications(instance.getAppName()).addInstance(instance);
+                    // 更新操作
                 } else if (ActionType.MODIFIED.equals(instance.getActionType())) {
                     Application existingApp = applications.getRegisteredApplications(instance.getAppName());
                     if (existingApp == null) {
@@ -1280,6 +1286,7 @@ public class DiscoveryClient implements EurekaClient {
                     applications.getRegisteredApplications(instance.getAppName()).addInstance(instance);
 
                 } else if (ActionType.DELETED.equals(instance.getActionType())) {
+                    // 删除操作
                     Application existingApp = applications.getRegisteredApplications(instance.getAppName());
                     if (existingApp != null) {
                         logger.debug("Deleted instance {} to the existing apps ", instance.getId());
@@ -1310,9 +1317,12 @@ public class DiscoveryClient implements EurekaClient {
      * Initializes all scheduled tasks.
      */
     private void initScheduledTasks() {
+        // 如果需要拉取注册表信息
         if (clientConfig.shouldFetchRegistry()) {
             // registry cache refresh timer
+            // 获得刷新时间，默认是30s 可以通过 eureka.client.registry.fetch-interval-seconds 进行设置
             int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
+            // 获得缓存刷新时间的间隔
             int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
             cacheRefreshTask = new TimedSupervisorTask(
                     "cacheRefresh",
@@ -1329,11 +1339,14 @@ public class DiscoveryClient implements EurekaClient {
         }
 
         if (clientConfig.shouldRegisterWithEureka()) {
+            // 默认也是30s
             int renewalIntervalInSecs = instanceInfo.getLeaseInfo().getRenewalIntervalInSecs();
+            // 重试次数
             int expBackOffBound = clientConfig.getHeartbeatExecutorExponentialBackOffBound();
             logger.info("Starting heartbeat executor: " + "renew interval is: {}", renewalIntervalInSecs);
 
             // Heartbeat timer
+            // 设置定时任务
             heartbeatTask = new TimedSupervisorTask(
                     "heartbeat",
                     scheduler,
@@ -1343,6 +1356,7 @@ public class DiscoveryClient implements EurekaClient {
                     expBackOffBound,
                     new HeartbeatThread()
             );
+            // 执行定时任务
             scheduler.schedule(
                     heartbeatTask,
                     renewalIntervalInSecs, TimeUnit.SECONDS);
@@ -1464,6 +1478,7 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * The heartbeat task that renews the lease in the given intervals.
      */
+    // HeartbeatThread同样继承了Runnable接口，该任务的作用是向Eureka Server发送心跳请求，维持Eureka Client在注册表中的租约
     private class HeartbeatThread implements Runnable {
 
         public void run() {
@@ -1506,6 +1521,7 @@ public class DiscoveryClient implements EurekaClient {
      * The task that fetches the registry information at specified intervals.
      *
      */
+    // 定时刷新注册表的信息
     class CacheRefreshThread implements Runnable {
         public void run() {
             refreshRegistry();

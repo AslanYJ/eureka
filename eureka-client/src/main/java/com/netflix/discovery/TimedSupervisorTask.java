@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author David Qiang Liu
  */
+// 执行定时任务的主要逻辑。。。。。 传入scheduler 执行对应的task
 public class TimedSupervisorTask extends TimerTask {
     private static final Logger logger = LoggerFactory.getLogger(TimedSupervisorTask.class);
 
@@ -63,18 +64,24 @@ public class TimedSupervisorTask extends TimerTask {
     public void run() {
         Future<?> future = null;
         try {
+            // 执行任务
             future = executor.submit(task);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
+            // 等待任务结果
             future.get(timeoutMillis, TimeUnit.MILLISECONDS);  // block until done or timeout
+            // 设置下一次的时间间隔
             delay.set(timeoutMillis);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
             successCounter.increment();
         } catch (TimeoutException e) {
             logger.warn("task supervisor timed out", e);
+            // 执行超时次数+1
             timeoutCounter.increment();
 
+            // 执行下次任务的执行频率
             long currentDelay = delay.get();
             long newDelay = Math.min(maxDelay, currentDelay * 2);
+
             delay.compareAndSet(currentDelay, newDelay);
 
         } catch (RejectedExecutionException e) {
