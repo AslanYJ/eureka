@@ -36,6 +36,7 @@ public class Lease<T> {
         Register, Cancel, Renew
     };
 
+    // 默认的租约有效期
     public static final int DEFAULT_DURATION_IN_SECS = 90;
 
     private T holder;
