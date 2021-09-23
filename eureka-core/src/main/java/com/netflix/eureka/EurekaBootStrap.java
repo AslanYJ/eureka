@@ -110,7 +110,9 @@ public class EurekaBootStrap implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent event) {
         try {
+            // 初始化Eureka的环境
             initEurekaEnvironment();
+            // 初始化EurekaServer的上下文
             initEurekaServerContext();
 
             ServletContext sc = event.getServletContext();
@@ -126,7 +128,7 @@ public class EurekaBootStrap implements ServletContextListener {
      */
     protected void initEurekaEnvironment() throws Exception {
         logger.info("Setting the eureka configuration..");
-
+        // doubleCheck + volatile的模式创建一个数据中心
         String dataCenter = ConfigurationManager.getConfigInstance().getString(EUREKA_DATACENTER);
         if (dataCenter == null) {
             logger.info("Eureka data center value eureka.datacenter is not set, defaulting to default");
@@ -134,6 +136,7 @@ public class EurekaBootStrap implements ServletContextListener {
         } else {
             ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_DATACENTER, dataCenter);
         }
+        // 使用默认的环境配置
         String environment = ConfigurationManager.getConfigInstance().getString(EUREKA_ENVIRONMENT);
         if (environment == null) {
             ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_ENVIRONMENT, TEST);
@@ -145,6 +148,9 @@ public class EurekaBootStrap implements ServletContextListener {
      * init hook for server context. Override for custom logic.
      */
     protected void initEurekaServerContext() throws Exception {
+        // key1. 获取EurekaServer的配置
+        // 这里是通过ConfigurationManager这个对象，去获取properties文件中的配置，然后放到properties对象中
+        // 如果没有就使用默认值
         EurekaServerConfig eurekaServerConfig = new DefaultEurekaServerConfig();
 
         // For backward compatibility
@@ -155,17 +161,22 @@ public class EurekaBootStrap implements ServletContextListener {
         logger.info(eurekaServerConfig.getJsonCodecName());
         ServerCodecs serverCodecs = new DefaultServerCodecs(eurekaServerConfig);
 
+        //key2:构建一个ApplicationManager
         ApplicationInfoManager applicationInfoManager = null;
 
         if (eurekaClient == null) {
+            // 这里和上面EurekaServerConfig类似。都是对外提供了一个暴露的接口，获取到实例（当前服务）的一些信息
+            // 通过configurationManager读取到eureka-client.properties的配置信息
             EurekaInstanceConfig instanceConfig = isCloud(ConfigurationManager.getDeploymentContext())
                     ? new CloudInstanceConfig()
                     : new MyDataCenterInstanceConfig();
-            
+            // 创建一个ApplicationManager。将EurekaInstanceConfig和instanceInfo
             applicationInfoManager = new ApplicationInfoManager(
                     instanceConfig, new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get());
-            
+            // key3:从eureka.client.properties中读取配置和EurekaTransportConfig
             EurekaClientConfig eurekaClientConfig = new DefaultEurekaClientConfig();
+            // key4:初始化EurekaClientConfig。。读取eureka-client.properties的配置信息，用来和其他
+            // eurekaServer进行注册和通信
             eurekaClient = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
         } else {
             applicationInfoManager = eurekaClient.getApplicationInfoManager();
@@ -197,7 +208,7 @@ public class EurekaBootStrap implements ServletContextListener {
                 serverCodecs,
                 applicationInfoManager
         );
-
+        // 构建一个EurekaServer的上下文
         serverContext = new DefaultEurekaServerContext(
                 eurekaServerConfig,
                 serverCodecs,
