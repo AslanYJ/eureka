@@ -77,7 +77,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     private static final Logger logger = LoggerFactory.getLogger(AbstractInstanceRegistry.class);
 
     private static final String[] EMPTY_STR_ARRAY = new String[0];
-    // key：服务名；value：服务名
+    // key:服务名，value：每一个服务实例 Map -> key :instanceId,InstanceInfo(服务实例信息)
     private final ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>> registry
             = new ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>>();
     protected Map<String, RemoteRegionRegistry> regionNameVSRemoteRegistry = new HashMap<String, RemoteRegionRegistry>();
@@ -124,6 +124,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
         this.renewsLastMin = new MeasuredRate(1000 * 60 * 1);
 
+        // 这里会初始化一个更新增量注册表的定时任务
         this.deltaRetentionTimer.schedule(getDeltaRetentionTask(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs());
@@ -192,7 +193,6 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      *
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
      */
-    // 客户端向服务端注册、。。 这里为什么也可以续约呢？ 因为有可能客户端的状态已经是Down。。 后面恢复服务，但是Server的实例还没更新，因此可以重新续租
     public void register(InstanceInfo registrant, int leaseDuration, boolean isReplication) {
         read.lock();
         try {
@@ -1365,6 +1365,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             public void run() {
                 Iterator<RecentlyChangedItem> it = recentlyChangedQueue.iterator();
                 while (it.hasNext()) {
+                    // 30s启动一个线程，会将180S之前的数据清理掉
                     if (it.next().getLastUpdateTime() <
                             System.currentTimeMillis() - serverConfig.getRetentionTimeInMSInDeltaQueue()) {
                         it.remove();

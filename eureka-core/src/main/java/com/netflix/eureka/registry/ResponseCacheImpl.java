@@ -211,6 +211,7 @@ public class ResponseCacheImpl implements ResponseCache {
 
     @VisibleForTesting
     String get(final Key key, boolean useReadOnlyCache) {
+        //useReadOnlyCache 是否用只读缓存，一般都是true
         Value payload = getValue(key, useReadOnlyCache);
         if (payload == null || payload.getPayload().equals(EMPTY_PAYLOAD)) {
             return null;
@@ -423,6 +424,7 @@ public class ResponseCacheImpl implements ResponseCache {
                             tracer = serializeAllAppsTimer.start();
                             payload = getPayLoad(key, registry.getApplications());
                         }
+                        // 增量拉取
                     } else if (ALL_APPS_DELTA.equals(key.getName())) {
                         if (isRemoteRegionRequested) {
                             tracer = serializeDeltaAppsWithRemoteRegionTimer.start();

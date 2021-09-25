@@ -114,10 +114,12 @@ class InstanceInfoReplicator implements Runnable {
 
     public void run() {
         try {
+            // 刷新了服务实例的信息
             discoveryClient.refreshInstanceInfo();
 
             Long dirtyTimestamp = instanceInfo.isDirtyWithTime();
             if (dirtyTimestamp != null) {
+                // 进行服务注册
                 discoveryClient.register();
                 instanceInfo.unsetIsDirty(dirtyTimestamp);
             }

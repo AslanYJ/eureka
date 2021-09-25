@@ -1394,7 +1394,7 @@ public class DiscoveryClient implements EurekaClient {
             if (clientConfig.shouldOnDemandUpdateStatusChange()) {
                 applicationInfoManager.registerStatusChangeListener(statusChangeListener);
             }
-
+            // 向注册中心注册,延迟40s注册
             instanceInfoReplicator.start(clientConfig.getInitialInstanceInfoReplicationIntervalSeconds());
         } else {
             logger.info("Not registering with Eureka server per configuration");
@@ -1469,6 +1469,7 @@ public class DiscoveryClient implements EurekaClient {
      * isDirty flag on the instanceInfo is set to true
      */
     void refreshInstanceInfo() {
+        // 刷新配置
         applicationInfoManager.refreshDataCenterInfoIfRequired();
         applicationInfoManager.refreshLeaseInfoIfRequired();
 

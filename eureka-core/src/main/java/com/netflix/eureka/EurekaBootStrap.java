@@ -182,6 +182,7 @@ public class EurekaBootStrap implements ServletContextListener {
             applicationInfoManager = eurekaClient.getApplicationInfoManager();
         }
 
+        // key5:构造一个用来感知EurekaServer集群的组件PeerAwareInstanceRegistry
         PeerAwareInstanceRegistry registry;
         if (isAws(applicationInfoManager.getInfo())) {
             registry = new AwsInstanceRegistry(
@@ -193,6 +194,7 @@ public class EurekaBootStrap implements ServletContextListener {
             awsBinder = new AwsBinderDelegate(eurekaServerConfig, eurekaClient.getEurekaClientConfig(), registry, applicationInfoManager);
             awsBinder.start();
         } else {
+            // 不是亚马逊云
             registry = new PeerAwareInstanceRegistryImpl(
                     eurekaServerConfig,
                     eurekaClient.getEurekaClientConfig(),
@@ -201,6 +203,7 @@ public class EurekaBootStrap implements ServletContextListener {
             );
         }
 
+        // key6：获取EurekaServer中所有节点的信息
         PeerEurekaNodes peerEurekaNodes = getPeerEurekaNodes(
                 registry,
                 eurekaServerConfig,

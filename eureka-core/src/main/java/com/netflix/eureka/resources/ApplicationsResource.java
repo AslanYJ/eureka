@@ -113,6 +113,7 @@ public class ApplicationsResource {
      * @return a response containing information about all {@link com.netflix.discovery.shared.Applications}
      *         from the {@link AbstractInstanceRegistry}.
      */
+    // 获取全量注册表的
     @GET
     public Response getContainers(@PathParam("version") String version,
                                   @HeaderParam(HEADER_ACCEPT) String acceptHeader,
@@ -144,7 +145,7 @@ public class ApplicationsResource {
             keyType = Key.KeyType.XML;
             returnMediaType = MediaType.APPLICATION_XML;
         }
-
+        // 通过缓存机制，获取到全量的注册表ALL_APPS
         Key cacheKey = new Key(Key.EntityType.Application,
                 ResponseCacheImpl.ALL_APPS,
                 keyType, CurrentRequestVersion.get(), EurekaAccept.fromString(eurekaAccept), regions
