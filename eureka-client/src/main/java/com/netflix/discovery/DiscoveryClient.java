@@ -1535,6 +1535,7 @@ public class DiscoveryClient implements EurekaClient {
     // 定时刷新注册表的信息
     class CacheRefreshThread implements Runnable {
         public void run() {
+            // 刷新注册表的信息
             refreshRegistry();
         }
     }
@@ -1567,7 +1568,7 @@ public class DiscoveryClient implements EurekaClient {
                     instanceRegionChecker.getAzToRegionMapper().refreshMapping();
                 }
             }
-
+            // 调用刷新缓存
             boolean success = fetchRegistry(remoteRegionsModified);
             if (success) {
                 registrySize = localRegionApps.get().size();

@@ -1018,6 +1018,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             }
 
             Applications allApps = getApplicationsFromMultipleRegions(remoteRegions);
+            // 设置一个HashCode,用于和客户端进行校验比对。
             apps.setAppsHashCode(allApps.getReconcileHashCode());
             return apps;
         } finally {
