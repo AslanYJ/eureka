@@ -61,6 +61,8 @@ public class Lease<T> {
      * {@link #DEFAULT_DURATION_IN_SECS}.
      */
     public void renew() {
+        // 这里新条件检测的的时候会+90s
+        // 假设当前是19:55:00 加了90s 会变成 19:56:30
         lastUpdateTimestamp = System.currentTimeMillis() + duration;
 
     }
@@ -108,7 +110,14 @@ public class Lease<T> {
      *
      * @param additionalLeaseMs any additional lease time to add to the lease evaluation in ms.
      */
+    // 判断是否续约过期
     public boolean isExpired(long additionalLeaseMs) {
+        // lastUpdateTimestamp 是19:56:30
+        // +90s 19:55:00 如果到了19:56:30  他没有心跳了。但是因为System.currentTimeMillis() < lastUpdateTimestamp + duration + additionalLeaseMs
+        // 然后过了+90 -> 变成 19：56:30 然后还是没有续约。 还不会认为宕机了，因为比他大；
+        // 20:00：00 > 19:56+90 = 19：58.。 摘除实例
+        // 因为+了 2*90s  因此 是3分钟才会服务线下。。。
+        //
         return (evictionTimestamp > 0 || System.currentTimeMillis() > (lastUpdateTimestamp + duration + additionalLeaseMs));
     }
 

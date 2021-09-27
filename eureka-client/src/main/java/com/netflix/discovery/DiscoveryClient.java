@@ -1356,7 +1356,7 @@ public class DiscoveryClient implements EurekaClient {
             logger.info("Starting heartbeat executor: " + "renew interval is: {}", renewalIntervalInSecs);
 
             // Heartbeat timer
-            // 设置定时任务
+            // 设置定时发送心跳的定时任务，默认时间是30s
             heartbeatTask = new TimedSupervisorTask(
                     "heartbeat",
                     scheduler,

@@ -618,6 +618,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             if (leaseMap != null) {
                 for (Entry<String, Lease<InstanceInfo>> leaseEntry : leaseMap.entrySet()) {
                     Lease<InstanceInfo> lease = leaseEntry.getValue();
+                    // 对于每一个服务实例租约判断一下，如果上一个服务实例上一次的心跳时间过了180S，就会认为是失效的。
                     if (lease.isExpired(additionalLeaseMs) && lease.getHolder() != null) {
                         expiredLeases.add(lease);
                     }
@@ -627,13 +628,13 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
         // To compensate for GC pauses or drifting local time, we need to use current registry size as a base for
         // triggering self-preservation. Without that we would wipe out full registry.
-        // 计算最大允许剔除的租约的数量，获取注册表租约总数
+        // 计算最大允许剔除的租约的数量，获取注册表租约总数 20,6个不可用
         int registrySize = (int) getLocalRegistrySize();
-        // 计算自我保护阈值 85%
+        // 计算自我保护阈值 85% 10* 8.85 = 8.5
         int registrySizeThreshold = (int) (registrySize * serverConfig.getRenewalPercentThreshold());
-        // 计算剔除的租约的数量
+        // 计算剔除的租约的数量 20-17 = 3 。
         int evictionLimit = registrySize - registrySizeThreshold;
-        // 过期的实例 和计算出来的需要剔除的实例 取最小值
+        // 过期的实例 和计算出来的需要剔除的实例 取最小值 最多摘除3个
         int toEvict = Math.min(expiredLeases.size(), evictionLimit);
         if (toEvict > 0) {
             logger.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
@@ -1264,6 +1265,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         @Override
         public void run() {
             try {
+                // 获取补偿时间。。。
                 long compensationTimeMs = getCompensationTimeMs();
                 logger.info("Running the evict task with compensationTime {}ms", compensationTimeMs);
                 evict(compensationTimeMs);
@@ -1279,6 +1281,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
          * according to the configured cycle.
          */
         long getCompensationTimeMs() {
+            // 因为有可能系统的时间 还有因为jvm的GC。。 因此时间可能会有误差。因此需要补偿
             long currNanos = getCurrentTimeNano();
             long lastNanos = lastExecutionNanosRef.getAndSet(currNanos);
             if (lastNanos == 0l) {
