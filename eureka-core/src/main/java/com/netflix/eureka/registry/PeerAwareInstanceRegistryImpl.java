@@ -242,6 +242,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     @Override
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
+        // 期望发送心跳的服务实例数量
         this.expectedNumberOfClientsSendingRenews = count;
         updateRenewsPerMinThreshold();
         logger.info("Got {} instances from neighboring DS node", count);
@@ -486,6 +487,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             // The self preservation mode is disabled, hence allowing the instances to expire.
             return true;
         }
+        // 如果开启了自我保护机制。那么就会去计算，上一分钟的心跳次数和应发的心跳次数做对比。如果少于
         return numberOfRenewsPerMinThreshold > 0 && getNumOfRenewsInLastMin() > numberOfRenewsPerMinThreshold;
     }
 
