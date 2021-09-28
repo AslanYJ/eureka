@@ -21,6 +21,7 @@ public class TaskDispatchers {
         return new TaskDispatcher<ID, T>() {
             @Override
             public void process(ID id, T task, long expiryTime) {
+                // key：集群批处理机制
                 acceptorExecutor.process(id, task, expiryTime);
             }
 

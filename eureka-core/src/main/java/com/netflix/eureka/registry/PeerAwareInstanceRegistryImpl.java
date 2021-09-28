@@ -413,6 +413,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             leaseDuration = info.getLeaseInfo().getDurationInSecs();
         }
         super.register(info, leaseDuration, isReplication);
+        // 注册的时候，会同步到其他EurekaServer节点,当Client注册的时候isReplication = false
         replicateToPeers(Action.Register, info.getAppName(), info.getId(), info, null, isReplication);
     }
 
@@ -649,6 +650,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                 if (peerEurekaNodes.isThisMyUrl(node.getServiceUrl())) {
                     continue;
                 }
+                // 这里就会将实例的一些操作同步到其他节点，比如说注册，心跳，下线,状态变更等等
                 replicateInstanceActionsToPeers(action, appName, id, info, newStatus, node);
             }
         } finally {
